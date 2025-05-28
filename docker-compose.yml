@@ -1,4 +1,4 @@
-version: '3.7'
+
 
 services:
   prometheus:
@@ -6,36 +6,45 @@ services:
     container_name: prometheus
     volumes:
       - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
     ports:
       - '9090:9090'
     networks:
       - observability
 
   loki:
-    image: grafana/loki:2.8.2
+    image: grafana/loki:latest
     container_name: loki
-    volumes:
-      - ./configs/loki-config.yaml:/etc/loki/local-config.yaml:ro
-    command:
-      - '-config.file=/etc/loki/local-config.yaml'
     ports:
       - '3100:3100'
     networks:
       - observability
 
   tempo:
-    image: grafana/tempo:1.6.0
+    image: grafana/tempo:latest
     container_name: tempo
-    volumes:
-      - ./configs/tempo-config.yaml:/etc/tempo/local-config.yaml:ro
-    command:
-      - '-config.file=/etc/tempo/local-config.yaml'
     ports:
-      - '3200:3200'
+      - "3200:3200"
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./configs/tempo.yaml:/etc/tempo.yaml
     networks:
       - observability
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    privileged: true
+    ports:
+      - '8080:8080'
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - observability
+
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
@@ -45,9 +54,12 @@ services:
     command:
       - '--config=/etc/otel-collector-config.yaml'
     ports:
-      - '4317:4317'   # OTLP gRPC receiver
-      - '55680:55680' # OTLP HTTP receiver
-      - '8888:8888'   # health & metrics
+      - '4317:4317'
+      - '55680:55680'
+      - '8888:8888' # Collector self-telemetry & health
+      - '8889:8889' # Prometheus metrics endpoint
+    depends_on:
+      - cadvisor
     networks:
       - observability
 
@@ -66,20 +78,6 @@ services:
       - '3000:3000'
     networks:
       - observability
-
-  cadvisor:
-    image: gcr.io/google-containers/cadvisor:latest
-    container_name: cadvisor
-    ports:
-      - "8080:8080"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-    networks:
-      - observability
-
 
 networks:
   observability:

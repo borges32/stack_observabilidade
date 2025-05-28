@@ -1,4 +1,11 @@
 receivers:
+  # Recebe dados OTLP de apps instrumentadas (gRPC e HTTP)
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+  # Faz scrape das métricas expostas pelo cAdvisor (Prometheus format)
   prometheus/cadvisor:
     config:
       scrape_configs:
@@ -14,10 +21,15 @@ processors:
     check_interval: 1s
 
 exporters:
+  # Expor métricas combinadas no formato Prometheus
   prometheus:
-    endpoint: "0.0.0.0:8888"
+    endpoint: "0.0.0.0:8889"
+
+  # Enviar logs para o Loki
   loki:
     endpoint: "http://loki:3100/loki/api/v1/push"
+
+  # Enviar traces OTLP ao Tempo via gRPC
   otlp:
     endpoint: "tempo:4317"
     tls:
@@ -29,10 +41,12 @@ service:
       receivers: [otlp, prometheus/cadvisor]
       processors: [memory_limiter, batch]
       exporters: [prometheus]
+
     logs:
       receivers: [otlp]
       processors: [batch]
       exporters: [loki]
+
     traces:
       receivers: [otlp]
       processors: [batch]
