@@ -1,0 +1,29 @@
+# configs/tempo-config.yaml
+
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+  register_instrumentation: true
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:    # OTLP/gRPC
+        http:    # OTLP/HTTP
+
+ingester:
+  trace_idle_period: 10s
+
+compactor:
+  compaction:
+    compaction_window: 1h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /tempo-data
+
+memberlist:
+  join_members: []

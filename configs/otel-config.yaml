@@ -3,7 +3,9 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
       http:
+        
 
   # Faz scrape das métricas expostas pelo cAdvisor (Prometheus format)
   prometheus/cadvisor:
@@ -31,7 +33,7 @@ exporters:
 
   # Enviar traces OTLP ao Tempo via gRPC
   otlp:
-    endpoint: "tempo:4317"
+    endpoint: "tempo:9095"
     tls:
       insecure: true
 

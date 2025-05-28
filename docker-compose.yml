@@ -1,6 +1,54 @@
 
 
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: pedidos_db
+      MYSQL_USER: app
+      MYSQL_PASSWORD: apppass
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - observability
+
+  python-api:
+    build: ./python-api
+    container_name: python-api
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - OTEL_SERVICE_NAME=python-api
+      - DB_HOST=mysql
+      - DB_USER=app
+      - DB_PASS=apppass
+      - DB_NAME=pedidos_db
+    depends_on:
+      - mysql
+      - otel-collector
+    networks:
+      - observability
+
+  node-api:
+    build: ./node-api
+    container_name: node-api
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - OTEL_SERVICE_NAME=node-api
+      - PYTHON_API=http://python-api:5000
+    depends_on:
+      - python-api
+      - otel-collector
+    ports:
+      - '4000:4000'
+    networks:
+      - observability
+
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -22,14 +70,20 @@ services:
   tempo:
     image: grafana/tempo:latest
     container_name: tempo
+    user: root       # mantém o usuário não-root, se quiser segurança
+    volumes:
+      - tempo_data:/tempo-data
+      - ./configs/tempo-config.yaml:/etc/tempo/config.yaml:ro
+    command:
+      - "-config.file=/etc/tempo/config.yaml"
+      - "-config.expand-env=true"
     ports:
       - "3200:3200"
-    command: [ "-config.file=/etc/tempo.yaml" ]
-    volumes:
-      - ./configs/tempo.yaml:/etc/tempo.yaml
+      - "4318:4318"
     networks:
       - observability
-
+  
+  
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     container_name: cadvisor
@@ -78,6 +132,11 @@ services:
       - '3000:3000'
     networks:
       - observability
+
+volumes:
+  mysql_data:
+  tempo_data:
+    driver: local
 
 networks:
   observability:
