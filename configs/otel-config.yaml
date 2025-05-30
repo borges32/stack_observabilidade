@@ -33,7 +33,7 @@ exporters:
 
   # Enviar traces OTLP ao Tempo via gRPC
   otlp:
-    endpoint: "tempo:9095"
+    endpoint: "tempo:4317"
     tls:
       insecure: true
 

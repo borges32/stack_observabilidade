@@ -1,7 +1,8 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, abort
 import mysql.connector
 import os
 import time
+import random
 
 # OpenTelemetry imports
 from opentelemetry import trace, metrics
@@ -86,8 +87,19 @@ conn.commit()
 cursor.close()
 conn.close()
 
+
+def maybe_fail():
+    """Gera um valor entre 0 e 20 e força erro 500 se for 5 ou 7."""
+    v = random.randint(0, 20)
+    print(f"[InjectFault] valor={v}")
+    if v in (5, 7):
+        abort(500, description=f"Erro injetado (valor={v})")
+
 @app.route('/novo_pedido', methods=['POST'])
 def novo_pedido():
+
+    maybe_fail()  # Inject a fault randomly
+
     with tracer.start_as_current_span("novo_pedido"):
         conn = mysql.connector.connect(**DB_CONF)
         cursor = conn.cursor()
@@ -100,6 +112,8 @@ def novo_pedido():
 
 @app.route('/fechar_pedido', methods=['POST'])
 def fechar_pedido():
+    maybe_fail()
+
     with tracer.start_as_current_span("fechar_pedido"):
         conn = mysql.connector.connect(**DB_CONF)
         cursor = conn.cursor()
